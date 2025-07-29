@@ -10,12 +10,12 @@ def get_number_frequencies(df):
     return freq
 
 # Weighted guess
-def generate_smart_guess(df, strategy="frequent", exclude_recent=True, weight_strength=1.0):
+def generate_smart_guess(df, strategy="frequent", exclude_recent=True, exclude_n_recent=0, weight_strength=1.0):
     freq = get_number_frequencies(df)
 
-    if exclude_recent:
+    if exclude_recent and exclude_n_recent > 0:
         recent_numbers = set()
-        for row in df.head(5)["Winning Numbers"]:
+        for row in df.head(exclude_n_recent)["Winning Numbers"]:
             recent_numbers.update(row)
     else:
         recent_numbers = set()
@@ -47,13 +47,13 @@ def generate_smart_guess(df, strategy="frequent", exclude_recent=True, weight_st
     return guess
 
 
-def generate_clustered_guess(df, exclude_recent=True):
+def generate_clustered_guess(df, exclude_recent=True, exclude_n_recent=0):
     freq = get_number_frequencies(df)
 
     # Get recently drawn numbers
     recent_numbers = set()
     if exclude_recent:
-        for row in df.head(5)["Winning Numbers"]:
+        for row in df.head(exclude_n_recent)["Winning Numbers"]:
             recent_numbers.update(row)
 
     # Frequency-based clustering
