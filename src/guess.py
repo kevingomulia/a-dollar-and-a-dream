@@ -17,7 +17,7 @@ def get_recent_numbers(df, exclude_n_recent):
     return sorted(recent_numbers)
 
 # Weighted guess
-def generate_smart_guess(df, strategy="frequent", exclude_recent=True, exclude_n_recent=0, weight_strength=1.0):
+def generate_smart_guess(df, strategy="frequent", exclude_recent=True, exclude_n_recent=0, weight_strength=1.0, num_digits=6):
     freq = get_number_frequencies(df)
 
     if exclude_recent and exclude_n_recent > 0:
@@ -50,11 +50,11 @@ def generate_smart_guess(df, strategy="frequent", exclude_recent=True, exclude_n
     total_weight = sum(candidate_weights)
     probabilities = [w / total_weight for w in candidate_weights]
 
-    guess = sorted(random.choices(candidate_numbers, weights=probabilities, k=6))
+    guess = sorted(random.choices(candidate_numbers, weights=probabilities, k=num_digits))
     return guess
 
 
-def generate_clustered_guess(df, exclude_recent=True, exclude_n_recent=0):
+def generate_clustered_guess(df, exclude_recent=True, exclude_n_recent=0, num_digits=6):
     freq = get_number_frequencies(df)
 
     # Get recently drawn numbers
@@ -78,11 +78,17 @@ def generate_clustered_guess(df, exclude_recent=True, exclude_n_recent=0):
         warm = [n for n in warm if n not in recent_numbers]
         cold = [n for n in cold if n not in recent_numbers]
 
+    base_count = num_digits // 3
+    remainder = num_digits % 3
+    cluster_sizes = [base_count] * 3
+    for i in range(remainder):
+        cluster_sizes[i] += 1  # distribute remainder to hot, warm, cold in order
+
     try:
         guess = (
-            random.sample(hot, 2) +
-            random.sample(warm, 2) +
-            random.sample(cold, 2)
+            random.sample(hot, cluster_sizes[0]) +
+            random.sample(warm, cluster_sizes[1]) +
+            random.sample(cold, cluster_sizes[2])
         )
         return sorted(guess)
     except ValueError:

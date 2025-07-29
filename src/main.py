@@ -51,13 +51,7 @@ tabs = st.tabs(["🎲 Random Guess", "📈 Smart Guess (Weighted)", "🔥 Hot-Wa
 # --- Tab 1: Random Guess ---
 with tabs[0]:
     st.header("One Dollar and A Dream")
-    num_digits = st.number_input(
-        "How many numbers per set?",
-        min_value=6,
-        max_value=13,
-        value=6,
-        step=1
-    )
+    num_digits = st.slider("How many numbers per set?", 6, 12, 6, step=1, key="num_digits")
     num_guesses = st.slider("Number of sets to generate", 1, 10, 1)
 
     if st.button("HUAT AH! Generate Random Guesses"):
@@ -92,10 +86,10 @@ with tabs[1]:
             st.divider()
             col1, col2 = st.columns([1, 2])
             with col1:
-                exclude_recent = st.checkbox("Exclude ALL latest drawn numbers", value=True)
+                exclude_recent = st.checkbox("Exclude ALL latest drawn numbers", value=True, key="exclude_recent")
             with col2:
                 if exclude_recent:
-                    exclude_n_recent = st.slider("Exclude the latest n draws:", 1, 5, 1)
+                    exclude_n_recent = st.slider("Exclude the latest n draws:", 1, 5, 1, key="exclude_n_recent")
                 else:
                     exclude_n_recent = 0  # fallback
             st.divider()
@@ -108,6 +102,7 @@ with tabs[1]:
                     - 1.0 → frequency-weighted but balanced  
                     - 2.0–3.0 → heavily favors frequent or rare numbers depending on strategy
                 """)
+        num_digits = st.slider("How many numbers per set?", 6, 12, 6, step=1, key="smart_num_digits")
         num_smart_guesses = st.slider("Number of smart guesses to generate", 1, 10, 1)
 
         if exclude_recent and exclude_n_recent > 0:
@@ -121,21 +116,23 @@ with tabs[1]:
                     strategy=strategy,
                     exclude_recent=exclude_recent,
                     exclude_n_recent=exclude_n_recent,
-                    weight_strength=weight_strength
+                    weight_strength=weight_strength,
+                    num_digits=num_digits
                 )
-                unique_guess = sorted(set(guess))[:6]  # Ensure 6 unique numbers
-                while len(unique_guess) < 6:
+                unique_guess = sorted(set(guess))[:num_digits]  # Ensure unique numbers
+                while len(unique_guess) < num_digits:
                     extra = generate_smart_guess(
                         df,
                         strategy=strategy,
                         exclude_recent=exclude_recent,
                         exclude_n_recent=exclude_n_recent,
-                        weight_strength=weight_strength
+                        weight_strength=weight_strength,
+                        num_digits=num_digits
                     )
                     for n in extra:
                         if n not in unique_guess:
                             unique_guess.append(n)
-                        if len(unique_guess) == 6:
+                        if len(unique_guess) == num_digits:
                             break
                 st.write(f"Smart Set {i+1}: {sorted(unique_guess)}")
 
@@ -156,28 +153,28 @@ with tabs[2]:
         with st.expander("🎯 Clustered Guess Settings"):
             col1, col2 = st.columns([1, 2])
             with col1:
-                exclude_recent_cluster = st.checkbox("(Cluster) Exclude ALL latest drawn numbers", value=True)
+                exclude_recent = st.checkbox("Exclude ALL latest drawn numbers", value=True, key="cluster_exclude_recent")
             with col2:
-                if exclude_recent_cluster:
-                    exclude_n_recent_cluster = st.slider("(Cluster) Exclude the latest n draws:", 1, 5, 1)
+                if exclude_recent:
+                    exclude_n_recent = st.slider("Exclude the latest n draws:", 1, 5, 1, key="cluster_exclude_n_recent")
                 else:
-                    exclude_n_recent_cluster = 0  # fallback
+                    exclude_n_recent = 0  # fallback
             if exclude_recent and exclude_n_recent > 0:
                 recent_numbers = get_recent_numbers(df, exclude_n_recent)
                 st.info(f"Excluded Numbers from the last {exclude_n_recent} draw(s): {recent_numbers}")
             
+        num_digits = st.slider("How many numbers per set?", 6, 12, 6, step=1, key="cluster_num_digits")
         num_cluster_guesses = st.slider("Number of guesses", 1, 10, 1, key="cluster_slider")
     
         if st.button("Generate Clustered HUAT Guesses"):
             for i in range(num_cluster_guesses):
-                guess = generate_clustered_guess(df, exclude_recent=exclude_recent_cluster, exclude_n_recent=exclude_n_recent_cluster)
+                guess = generate_clustered_guess(df, exclude_recent=exclude_recent, exclude_n_recent=exclude_n_recent, num_digits=num_digits)
                 st.write(f"Clustered Set {i+1}: {guess}")
 
         st.info("""
-            - Groups numbers by how often they appear: Hot, Warm, Cold.
-            - Picks 2 numbers from each group for each guess.
-            - Adds diversity and avoids recently drawn numbers.
-        """)
+            - Groups numbers by how often they appear: Hot (appears frequently), Warm, or Cold (appears rarely).
+            - Picks equal numbers from each group for each guess.
+            - Excludes recently drawn numbers if selected.""")
     else:
         st.warning("No data loaded. Upload a file or use the default.")
 
