@@ -1,5 +1,5 @@
-# Food Recs
-Submit your food recommendations and get food recommendations here!
+# Toto Number Generator
+Randomly generates the magical 6 digits that might make you rich (probably not).
 
 ## Requirements
 1. make
