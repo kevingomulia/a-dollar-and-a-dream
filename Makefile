@@ -26,18 +26,6 @@ update-req: venv requirements.in  ## Update requirements to fulfil dependencies 
 install: venv requirements.txt ## Install dependencies for dev
 	venv/bin/pip-sync requirements.txt
 
-db: ## Run a Postgres database with env vars that matches the DATABASE_URL env var
-	docker run -d --rm \
-	-p 5432:5432 \
-	--name food_db  \
-	-v "$(PWD)/db:/var/lib/postgresql/data" \
-	-e POSTGRES_USER=postgres \
-	-e POSTGRES_PASSWORD=postgres \
-	-e POSTGRES_DB=postgres \
-	-e TZ=UTC \
-	postgres:17
-
-
 run: install ## Run with dev dependencies
 	venv/bin/python -m streamlit run src/main.py
 
