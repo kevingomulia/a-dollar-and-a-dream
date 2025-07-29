@@ -9,6 +9,13 @@ def get_number_frequencies(df):
     freq = Counter(all_numbers)
     return freq
 
+
+def get_recent_numbers(df, exclude_n_recent):
+    recent_numbers = set()
+    for row in df.head(exclude_n_recent)["Winning Numbers"]:
+        recent_numbers.update(row)
+    return sorted(recent_numbers)
+
 # Weighted guess
 def generate_smart_guess(df, strategy="frequent", exclude_recent=True, exclude_n_recent=0, weight_strength=1.0):
     freq = get_number_frequencies(df)

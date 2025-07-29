@@ -4,8 +4,10 @@ from guess import (
     generate_random_guess,
     generate_smart_guess,
     get_number_frequencies,
-    generate_clustered_guess
+    generate_clustered_guess,
+    get_recent_numbers
 )
+
 from pathlib import Path
 import os
 from datetime import datetime
@@ -100,6 +102,10 @@ with tabs[1]:
                 """)
         num_smart_guesses = st.slider("Number of smart guesses to generate", 1, 10, 1)
 
+        if exclude_recent and exclude_n_recent > 0:
+            recent_numbers = get_recent_numbers(df, exclude_n_recent)
+            st.info(f"Excluded Numbers from the last {exclude_n_recent} draw(s): {recent_numbers}")
+
         if st.button("Generate Weighted HUAT Guesses"):
             for i in range(num_smart_guesses):
                 guess = generate_smart_guess(
@@ -115,6 +121,7 @@ with tabs[1]:
                         df,
                         strategy=strategy,
                         exclude_recent=exclude_recent,
+                        exclude_n_recent=exclude_n_recent,
                         weight_strength=weight_strength
                     )
                     for n in extra:
@@ -149,6 +156,10 @@ with tabs[2]:
                     exclude_n_recent_cluster = 0  # fallback
         num_cluster_guesses = st.slider("Number of guesses", 1, 10, 1, key="cluster_slider")
 
+        if exclude_recent and exclude_n_recent > 0:
+            recent_numbers = get_recent_numbers(df, exclude_n_recent)
+            st.info(f"Excluded Numbers from the last {exclude_n_recent} draw(s): {recent_numbers}")
+            
         if st.button("Generate Clustered HUAT Guesses"):
             for i in range(num_cluster_guesses):
                 guess = generate_clustered_guess(df, exclude_recent=exclude_recent_cluster, exclude_n_recent=exclude_n_recent_cluster)
