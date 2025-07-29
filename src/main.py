@@ -7,7 +7,7 @@ from guess import (
     generate_clustered_guess,
     get_recent_numbers
 )
-from src.utils import digit_slider, recent_exclude_ui, fill_unique_numbers
+from utils import digit_slider, recent_exclude_ui, fill_unique_numbers
 
 from pathlib import Path
 import os
