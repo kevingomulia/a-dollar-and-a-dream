@@ -1,8 +1,8 @@
 from collections import Counter
 import random
 
-def generate_random_guess():
-    return sorted(random.sample(range(1, 50), 6))
+def generate_random_guess(num_digits=6):
+    return sorted(random.sample(range(1, 50), num_digits))
 
 def get_number_frequencies(df):
     all_numbers = [num for sublist in df["Winning Numbers"] for num in sublist]

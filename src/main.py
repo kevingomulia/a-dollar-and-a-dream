@@ -51,10 +51,18 @@ tabs = st.tabs(["🎲 Random Guess", "📈 Smart Guess (Weighted)", "🔥 Hot-Wa
 # --- Tab 1: Random Guess ---
 with tabs[0]:
     st.header("One Dollar and A Dream")
+    num_digits = st.number_input(
+        "How many numbers per set?",
+        min_value=6,
+        max_value=13,
+        value=6,
+        step=1
+    )
     num_guesses = st.slider("Number of sets to generate", 1, 10, 1)
+
     if st.button("HUAT AH! Generate Random Guesses"):
         for i in range(num_guesses):
-            st.write(f"Set {i+1}: {generate_random_guess()}")
+            st.write(f"Set {i+1}: {generate_random_guess(num_digits)}")
 
 # --- Tab 2: Smart Guess ---
 with tabs[1]:
@@ -154,12 +162,12 @@ with tabs[2]:
                     exclude_n_recent_cluster = st.slider("(Cluster) Exclude the latest n draws:", 1, 5, 1)
                 else:
                     exclude_n_recent_cluster = 0  # fallback
-        num_cluster_guesses = st.slider("Number of guesses", 1, 10, 1, key="cluster_slider")
-
-        if exclude_recent and exclude_n_recent > 0:
-            recent_numbers = get_recent_numbers(df, exclude_n_recent)
-            st.info(f"Excluded Numbers from the last {exclude_n_recent} draw(s): {recent_numbers}")
+            if exclude_recent and exclude_n_recent > 0:
+                recent_numbers = get_recent_numbers(df, exclude_n_recent)
+                st.info(f"Excluded Numbers from the last {exclude_n_recent} draw(s): {recent_numbers}")
             
+        num_cluster_guesses = st.slider("Number of guesses", 1, 10, 1, key="cluster_slider")
+    
         if st.button("Generate Clustered HUAT Guesses"):
             for i in range(num_cluster_guesses):
                 guess = generate_clustered_guess(df, exclude_recent=exclude_recent_cluster, exclude_n_recent=exclude_n_recent_cluster)
