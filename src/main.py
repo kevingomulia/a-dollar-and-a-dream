@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from src.guess import (
+from guess import (
     generate_random_guess,
     generate_smart_guess,
     get_number_frequencies,
