@@ -7,29 +7,29 @@ from guess import (
     generate_clustered_guess,
     get_recent_numbers
 )
+from src.utils import digit_slider, recent_exclude_ui, fill_unique_numbers
 
 from pathlib import Path
 import os
 from datetime import datetime
 
+# --- Load Draw Data ---
 def load_data(file_path_or_buffer):
     df = pd.read_csv(file_path_or_buffer)
     win_cols = ["Winning Number 1", "2", "3", "4", "5", "6"]
     df["Winning Numbers"] = df[win_cols].values.tolist()
     return df
 
-
-# --- Load default data ---
+# --- Default Data Loader ---
 def get_default_data():
     BASE_DIR = Path(__file__).resolve().parent
     DATA_DIR = BASE_DIR / "data"
-
     default_path = DATA_DIR / "ToTo.csv"
     if os.path.exists(default_path):
         return load_data(default_path)
     return None
 
-# --- Append new draw to CSV ---
+# --- Append New Draw ---
 def append_new_draw(new_row):
     BASE_DIR = Path(__file__).resolve().parent
     DATA_DIR = BASE_DIR / "data"
@@ -38,22 +38,17 @@ def append_new_draw(new_row):
     df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True)
     df.to_csv(file_path, index=False)
 
-# --- Streamlit UI ---
-st.set_page_config(
-    page_title="A Dollar and A Dream",
-    layout="wide",
-    page_icon="🎰"
-)
+# --- Streamlit Config ---
+st.set_page_config(page_title="A Dollar and A Dream", layout="wide", page_icon="🎰")
 st.title("Singapore TOTO Number Generator")
 st.warning("Please gamble responsibly. This is for entertainment purposes only.")
-tabs = st.tabs(["🎲 Random Guess", "📈 Smart Guess (Weighted)", "🔥 Hot-Warm-Cold Strategy", "📥 Add New Draw"])
+tabs = st.tabs(["🎲 Random Guess", "📈 Smart Guess (Weighted)", "🔥 Hot-Warm-Cold Strategy", "📅 Add New Draw"])
 
 # --- Tab 1: Random Guess ---
 with tabs[0]:
     st.header("One Dollar and A Dream")
-    num_digits = st.slider("How many numbers per set?", 6, 12, 6, step=1, key="num_digits")
+    num_digits = digit_slider("How many numbers per set?", "num_digits")
     num_guesses = st.slider("Number of sets to generate", 1, 10, 1)
-
     if st.button("HUAT AH! Generate Random Guesses"):
         for i in range(num_guesses):
             st.write(f"Set {i+1}: {generate_random_guess(num_digits)}")
@@ -61,122 +56,85 @@ with tabs[0]:
 # --- Tab 2: Smart Guess ---
 with tabs[1]:
     st.header("Smart Guess Based on Historical Draws")
-
     default_df = get_default_data()
-    uploaded_file = st.file_uploader("Upload TOTO Past Draws CSV (optional). Download CSV data from https://en.lottolyzer.com/history/singapore/toto.", type="csv")
+    uploaded_file = st.file_uploader("Upload TOTO Past Draws CSV (optional)", type="csv")
+    df = load_data(uploaded_file) if uploaded_file else default_df
+    if df is None:
+        st.error("No data available.")
+        st.stop()
 
-    if uploaded_file:
-        df = load_data(uploaded_file)
-        st.success("CSV uploaded and loaded successfully.")
-    elif default_df is not None:
-        df = default_df
-        st.info("Using default TOTO data from data/ToTo.csv")
-    else:
-        df = None
-        st.error("No data available. Please upload a file.")
+    st.info(f"Using draw data up to: **{df.iloc[0]['Date']}**")
+    with st.expander("🎯 Smart Guess Settings"):
+        strategy = st.radio("Strategy", ["frequent", "rare"])
+        exclude_recent, exclude_n_recent = recent_exclude_ui(key_prefix="smart")
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            weight_strength = st.slider("Weight strength", 0.0, 3.0, 1.0, 0.1)
+        with col2:
+            st.info("0 = random\n3 = strong bias")
 
-    if df is not None:
-        # Show latest available draw date
-        latest_date = df.iloc[0]["Date"]
-        st.write(f"**Latest Draw Date in Dataset:** {latest_date}")
+    num_digits = digit_slider("How many numbers per set?", "smart_num_digits")
+    num_smart_guesses = st.slider("Number of smart guesses", 1, 10, 1)
 
-        with st.expander("🎯 Smart Guess Settings"):
-            strategy = st.radio("Select strategy (Prefer frequently / rarely appearing numbers)", ["frequent", "rare"])
+    if exclude_recent and exclude_n_recent > 0:
+        st.info(f"Excluded numbers from recent draws: {get_recent_numbers(df, exclude_n_recent)}")
 
-            st.divider()
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                exclude_recent = st.checkbox("Exclude ALL latest drawn numbers", value=True, key="exclude_recent")
-            with col2:
-                if exclude_recent:
-                    exclude_n_recent = st.slider("Exclude the latest n draws:", 1, 5, 1, key="exclude_n_recent")
-                else:
-                    exclude_n_recent = 0  # fallback
-            st.divider()
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                weight_strength = st.slider("Weight strength (0=random, 3=strong bias)", 0.0, 3.0, 1.0, step=0.1)
-            with col2:
-                st.info("""
-                    - 0.0 → behaves like pure random sampling  
-                    - 1.0 → frequency-weighted but balanced  
-                    - 2.0–3.0 → heavily favors frequent or rare numbers depending on strategy
-                """)
-        num_digits = st.slider("How many numbers per set?", 6, 12, 6, step=1, key="smart_num_digits")
-        num_smart_guesses = st.slider("Number of smart guesses to generate", 1, 10, 1)
+    if st.button("Generate Weighted HUAT Guesses"):
+        for i in range(num_smart_guesses):
+            raw_guess = generate_smart_guess(
+                df,
+                strategy=strategy,
+                exclude_recent=exclude_recent,
+                exclude_n_recent=exclude_n_recent,
+                weight_strength=weight_strength,
+                num_digits=num_digits
+            )
+            final_guess = fill_unique_numbers(
+                generate_func=generate_smart_guess,
+                df=df,
+                existing=raw_guess,
+                num_digits=num_digits,
+                strategy=strategy,
+                exclude_recent=exclude_recent,
+                exclude_n_recent=exclude_n_recent,
+                weight_strength=weight_strength
+            )
+            st.write(f"Smart Set {i+1}: {final_guess}")
 
-        if exclude_recent and exclude_n_recent > 0:
-            recent_numbers = get_recent_numbers(df, exclude_n_recent)
-            st.info(f"Excluded Numbers from the last {exclude_n_recent} draw(s): {recent_numbers}")
+    if st.checkbox("Stats for nerds"):
+        freq = get_number_frequencies(df)
+        freq_df = pd.DataFrame(freq.items(), columns=["Number", "Frequency"]).sort_values("Frequency", ascending=False)
+        st.dataframe(freq_df.reset_index(drop=True), use_container_width=True, hide_index=True)
 
-        if st.button("Generate Weighted HUAT Guesses"):
-            for i in range(num_smart_guesses):
-                guess = generate_smart_guess(
-                    df,
-                    strategy=strategy,
-                    exclude_recent=exclude_recent,
-                    exclude_n_recent=exclude_n_recent,
-                    weight_strength=weight_strength,
-                    num_digits=num_digits
-                )
-                unique_guess = sorted(set(guess))[:num_digits]  # Ensure unique numbers
-                while len(unique_guess) < num_digits:
-                    extra = generate_smart_guess(
-                        df,
-                        strategy=strategy,
-                        exclude_recent=exclude_recent,
-                        exclude_n_recent=exclude_n_recent,
-                        weight_strength=weight_strength,
-                        num_digits=num_digits
-                    )
-                    for n in extra:
-                        if n not in unique_guess:
-                            unique_guess.append(n)
-                        if len(unique_guess) == num_digits:
-                            break
-                st.write(f"Smart Set {i+1}: {sorted(unique_guess)}")
-
-        if st.checkbox("Stats for nerds"):
-            st.write("Kua simi kua?")
-            freq = get_number_frequencies(df)
-            freq_df = pd.DataFrame(freq.items(), columns=["Number", "Frequency"]).sort_values("Frequency", ascending=False)
-            st.dataframe(freq_df.reset_index(drop=True), use_container_width=True, hide_index=True)
-
-# --- Tab 3: Cluster-Based Smart Guess ---
+# --- Tab 3: Clustered Guess ---
 with tabs[2]:
     st.header("Hot-Warm-Cold Frequency Strategy")
+    if df is None:
+        st.warning("No data loaded.")
+        st.stop()
 
-    if df is not None:
-        latest_date = df.iloc[0]["Date"]
-        st.write(f"**Latest Draw Date in Dataset:** {latest_date}")
+    st.info(f"Using draw data up to: **{df.iloc[0]['Date']}**")
+    with st.expander("🎯 Clustered Guess Settings"):
+        exclude_recent, exclude_n_recent = recent_exclude_ui(key_prefix="cluster")
+        if exclude_recent and exclude_n_recent > 0:
+            st.info(f"Excluded numbers from recent draws: {get_recent_numbers(df, exclude_n_recent)}")
 
-        with st.expander("🎯 Clustered Guess Settings"):
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                exclude_recent = st.checkbox("Exclude ALL latest drawn numbers", value=True, key="cluster_exclude_recent")
-            with col2:
-                if exclude_recent:
-                    exclude_n_recent = st.slider("Exclude the latest n draws:", 1, 5, 1, key="cluster_exclude_n_recent")
-                else:
-                    exclude_n_recent = 0  # fallback
-            if exclude_recent and exclude_n_recent > 0:
-                recent_numbers = get_recent_numbers(df, exclude_n_recent)
-                st.info(f"Excluded Numbers from the last {exclude_n_recent} draw(s): {recent_numbers}")
-            
-        num_digits = st.slider("How many numbers per set?", 6, 12, 6, step=1, key="cluster_num_digits")
-        num_cluster_guesses = st.slider("Number of guesses", 1, 10, 1, key="cluster_slider")
-    
-        if st.button("Generate Clustered HUAT Guesses"):
-            for i in range(num_cluster_guesses):
-                guess = generate_clustered_guess(df, exclude_recent=exclude_recent, exclude_n_recent=exclude_n_recent, num_digits=num_digits)
-                st.write(f"Clustered Set {i+1}: {guess}")
+    num_digits = digit_slider("How many numbers per set?", "cluster_num_digits")
+    num_cluster_guesses = st.slider("Number of guesses", 1, 10, 1, key="cluster_slider")
+    if st.button("Generate Clustered HUAT Guesses"):
+        for i in range(num_cluster_guesses):
+            guess = generate_clustered_guess(
+                df,
+                exclude_recent=exclude_recent,
+                exclude_n_recent=exclude_n_recent,
+                num_digits=num_digits
+            )
+            st.write(f"Clustered Set {i+1}: {guess}")
 
-        st.info("""
-            - Groups numbers by how often they appear: Hot (appears frequently), Warm, or Cold (appears rarely).
-            - Picks equal numbers from each group for each guess.
-            - Excludes recently drawn numbers if selected.""")
-    else:
-        st.warning("No data loaded. Upload a file or use the default.")
+    st.info("""
+        - Groups numbers by how often they appear: Hot (appears frequently), Warm, or Cold (appears rarely).
+        - Picks equal numbers from each group for each guess.
+        - Excludes recently drawn numbers if selected.""")
 
 # --- Tab 4: Add New Draw ---
 with tabs[3]:
@@ -187,15 +145,12 @@ with tabs[3]:
         st.warning("Enter the correct password to unlock submission form.")
         st.stop()
 
-    # --- If password is correct, continue as normal ---
     st.header("Add New TOTO Draw Result")
     df = get_default_data()
-
     if df is not None:
         last_draw = int(df.iloc[0]["Draw"])
         new_draw_num = last_draw + 1
         st.write(f"**New Draw Number:** {new_draw_num}")
-
         new_date = st.date_input("Draw Date", value=datetime.today())
 
         numbers = []
