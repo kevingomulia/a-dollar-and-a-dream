@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit.components.v1 import html
 import pandas as pd
 from guess import (
     generate_random_guess,
@@ -38,6 +39,40 @@ def append_new_draw(new_row):
     df = pd.concat([pd.DataFrame([new_row]), df], ignore_index=True)
     df.to_csv(file_path, index=False)
 
+# --- Clipboard Button ---
+def st_copy_button(text: str, height: int = 50):
+    """
+    Displays a 'Copy All to Clipboard' button with feedback.
+    
+    Args:
+        text (str): The text to copy.
+        height (int): The height of the component in pixels.
+    """
+    # Escape backticks and backslashes to prevent JS errors
+    escaped_text = text.replace("\\", "\\\\").replace("`", "\\`")
+    
+    html(f"""
+    <button id="copy-btn" style="
+        font-family: inherit;
+        font-size: 14px;
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        border: 1px solid #ccc;
+        cursor: pointer;
+        background-color: var(--primary-background-color, #f0f2f6);
+    ">Copy All to Clipboard</button>
+    <span id="copy-msg" style="margin-left:10px; color:green; display:none;">Copied!</span>
+    <script>
+    const btn = document.getElementById("copy-btn");
+    const msg = document.getElementById("copy-msg");
+    btn.onclick = () => {{
+        navigator.clipboard.writeText(`{escaped_text}`);
+        msg.style.display = "inline";
+        setTimeout(() => msg.style.display = "none", 2000);
+    }}
+    </script>
+    """, height=height)
+
 # --- Streamlit Config ---
 st.set_page_config(page_title="A Dollar and A Dream", layout="wide", page_icon="🎰")
 st.title("Singapore TOTO Number Generator")
@@ -49,9 +84,17 @@ with tabs[0]:
     st.header("One Dollar and A Dream")
     num_digits = digit_slider("How many numbers per set?", "num_digits")
     num_guesses = st.slider("Number of sets to generate", 1, 10, 1)
+
     if st.button("HUAT AH! Generate Random Guesses"):
+        results = []
         for i in range(num_guesses):
-            st.write(f"Set {i+1}: {generate_random_guess(num_digits)}")
+            guess = generate_random_guess(num_digits)
+            results.append(guess)
+            st.write(f"Set {i+1}: {guess}")
+
+        results_text = "\n".join([f"Set {i+1}: {g}" for i, g in enumerate(results)])
+        st_copy_button(results_text)
+
 
 # --- Tab 2: Smart Guess ---
 with tabs[1]:
@@ -80,6 +123,7 @@ with tabs[1]:
         st.info(f"Excluded numbers from recent draws: {get_recent_numbers(df, exclude_n_recent)}")
 
     if st.button("Generate Weighted HUAT Guesses"):
+        final_guesses = []
         for i in range(num_smart_guesses):
             raw_guess = generate_smart_guess(
                 df,
@@ -99,7 +143,11 @@ with tabs[1]:
                 exclude_n_recent=exclude_n_recent,
                 weight_strength=weight_strength
             )
+            final_guesses.append(final_guess)
             st.write(f"Smart Set {i+1}: {final_guess}")
+
+        smart_results_text = "\n".join([f"Smart Set {i+1}: {g}" for i, g in enumerate(final_guesses)])
+        st_copy_button(smart_results_text)
 
     if st.checkbox("Stats for nerds"):
         freq = get_number_frequencies(df)
@@ -122,6 +170,7 @@ with tabs[2]:
     num_digits = digit_slider("How many numbers per set?", "cluster_num_digits")
     num_cluster_guesses = st.slider("Number of guesses", 1, 10, 1, key="cluster_slider")
     if st.button("Generate Clustered HUAT Guesses"):
+        cluster_guesses = []
         for i in range(num_cluster_guesses):
             guess = generate_clustered_guess(
                 df,
@@ -129,7 +178,11 @@ with tabs[2]:
                 exclude_n_recent=exclude_n_recent,
                 num_digits=num_digits
             )
+            cluster_guesses.append(guess)
             st.write(f"Clustered Set {i+1}: {guess}")
+
+        cluster_results_text = "\n".join([f"Clustered Set {i+1}: {g}" for i, g in enumerate(cluster_guesses)])
+        st_copy_button(cluster_results_text)
 
     st.info("""
         - Groups numbers by how often they appear: Hot (appears frequently), Warm, or Cold (appears rarely).
