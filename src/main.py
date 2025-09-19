@@ -198,24 +198,64 @@ with tabs[3]:
         st.warning("Enter the correct password to unlock submission form.")
         st.stop()
 
-    st.header("Add New TOTO Draw Result")
+    st.header("Add New TOTO Draw Result / Manage Database")
     df = get_default_data()
+
+    # --- Option 1: Upload a Full CSV (truncate + reload) ---
+    st.subheader("📤 Replace Database with CSV")
+    uploaded_csv = st.file_uploader("Upload new TOTO draws CSV", type="csv", key="replace_csv")
+    if uploaded_csv is not None:
+        BASE_DIR = Path(__file__).resolve().parent
+        DATA_DIR = BASE_DIR / "data"
+        file_path = DATA_DIR / "ToTo.csv"
+        
+        # Overwrite database with uploaded CSV
+        new_df = pd.read_csv(uploaded_csv)
+        new_df.to_csv(file_path, index=False)
+        st.success("Database has been replaced with the uploaded CSV. Please refresh the page")
+        st.stop()
+
+    # --- Option 2: Add a Single Draw ---
+    st.subheader("➕ Add a Single Draw")
+
     if df is not None:
         last_draw = int(df.iloc[0]["Draw"])
         new_draw_num = last_draw + 1
         st.write(f"**New Draw Number:** {new_draw_num}")
         new_date = st.date_input("Draw Date", value=datetime.today())
 
-        numbers = []
-        cols = st.columns(6)
-        for i in range(6):
-            with cols[i]:
-                num = st.number_input(f"Number {i+1}", min_value=1, max_value=49, step=1, key=f"num_{i}")
-                numbers.append(int(num))
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            csv_input = st.text_input("Enter 6 numbers separated by commas", "2,3,4,16,22,39")
+            try:
+                numbers = [int(x.strip()) for x in csv_input.split(",") if x.strip()]
+                if len(numbers) != 6:
+                    st.error("Please enter exactly 6 numbers.")
+                    numbers = None
+            except ValueError:
+                st.error("Invalid input. Only numbers and commas are allowed.")
+                numbers = None
 
-        add_num = st.number_input("Additional Number", min_value=1, max_value=49, step=1, key="add_num")
+        with col2:
+            add_num_input = st.text_input("Additional Number (required)", value="", key="add_num")
+            add_num = None
+            if add_num_input.strip():
+                try:
+                    add_num_val = int(add_num_input)
+                    if 1 <= add_num_val <= 49:
+                        add_num = add_num_val
+                    else:
+                        st.error("Additional number must be between 1 and 49.")
+                except ValueError:
+                    st.error("Please enter a valid integer between 1 and 49.")
 
-        if st.button("Submit New Draw"):
+        with st.form("new_draw_form"):
+            submit_btn = st.form_submit_button(
+                "Submit New Draw",
+                disabled=(numbers is None or add_num is None)
+            )
+
+        if submit_btn:
             low = min(numbers)
             high = max(numbers)
             odd = len([n for n in numbers if n % 2 == 1])
